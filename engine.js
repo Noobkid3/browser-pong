@@ -7,132 +7,7 @@
 * mode refers to the difficulty
 * 0 = very easy
 * 1 = easy
-* 2 = normal
-* 3 = hard
-* 4 = inhuman
-*
-* The speed variable determines how fast the ball moves
-*
-* The chain variable, every time the ball hits a paddle it subtracts speed by chain
-* basically subtracting 1 each hit until it reaches 1ms, the limit.
-*/
-
-// custom graphics and colors for our paddles and ball
-// this will change depending if the player chooses a preset or makes their own
-var custom = {
-  paddle : 'graphics/p_default.gif',
-  ball : 'graphics/b_default.gif',
-  id : 'ball',
-  color : 'none'
-}, paused = false, started = false; // helpful for checking if the game is paused or started.
-
-// triggered by one of the many difficulty buttons
-// did you know the type is determined by the modeList className ?
-function startGame(type, mode) {
-    if (started) return;
-	started = true;
-	
-	// this hides a bunch of menus so they're not in the player's way when the game starts
-	hide(getId('main-info'));
-    for (var i=0, menus = document.getElementsByTagName('DIV'); i<menus.length; i++) if (/menu/.test(menus[i].className)) hide(menus[i]);
-	  
-  var wX = window.innerWidth, wY = window.innerHeight,
-      scorep1 = 0, scorep2 = 0,
-	  cap = cNum('cap',1),
-      speed = cNum('speed',45),
-	  chain = 0, best_chain = 0,
-	  
-	  ball = new Ball(),
-      player1 = new Paddle('p1'),
-      player2 = new Paddle('p2'),
-	  controls_p1 = 'idle',
-	  difficulty = [ 1,1 ], gameEnded = false;
-	  
-	  
-  if (mode == 0) difficulty = [ 40,25 ]; // very easy
-  if (mode == 1) difficulty = [ 30,20 ]; // easy
-  if (mode == 2) difficulty = [ 20,15 ]; // normal
-  if (mode == 3) difficulty = [ 10,1 ]; // hard
-  if (mode == 4) difficulty = [ 3,1 ]; // inhuman
-	  
-  show(getId('UI')); // show UI
-	  
-  // set the coords of p1 and p2
-  player1.setCoords(50,wY / 2 - 50);
-  player2.setCoords(wX - 65, wY / 2 - 50);
-  ball.reset(); // set the ball
-  window.setTimeout(function() { ball.dir('random'), ball.animate(speed) },1000);
-  
-  // check game mode
-  if (type == 0) initCPU(player2, difficulty[1]);
-  if (type == 1) initCPU(player1, difficulty[1]), initCPU(player2, difficulty[1]);
-  
-  // paddle
-  function Paddle(classname) {
-    this.el = document.createElement('IMG');
-	this.el.src = custom.paddle;
-	if (custom.color != 'none') this.el.style.background = custom.color;
-	this.el.className = 'paddle '+classname;
-	this.setCoords = function(x,y) { this.el.style.left = Math.floor(x)+'px', this.el.style.top = Math.floor(y)+'px' };
-	this.up = function() { this.el.style.top = getY(this.el) - 10 + 'px' };
-	this.down = function() { this.el.style.top = getY(this.el) + 10 + 'px' };
-	
-	document.body.insertBefore(this.el,document.body.firstChild);
-  };
-  
-  // ball
-  function Ball() {
-    this.el = document.createElement('IMG');
-	this.el.src = custom.ball;
-	if (custom.color != 'none') this.el.style.background = custom.color;
-	this.el.id = custom.id;
-	this.reset = function() { this.el.style.left = Math.floor(wX / 2)+'px', this.el.style.top = Math.floor(wY / 2)+'px' };
-	this.dir = function(type) {
-	  var r = Math.floor(Math.random() * 2), d;
-	  if (type == 'random') {
-	    if (r == 0) d = 'left_X10_Y0';
-		if (r == 1) d = 'right_X10_Y0';
-	  } else d = type;
-	
-	  this.el.className = d
-	};
-	
-	// ball movement methods
-    this.up = function() { this.el.style.top = getY(this.el) - sY() + 'px' };
-	this.left = function() { this.el.style.left = getX(this.el) - sX() + 'px' };
-	this.right = function() { this.el.style.left = getX(this.el) + sX() + 'px' };
-	this.down = function() { this.el.style.top = getY(this.el) + sY() + 'px' };
-	
-	// ball animation
-	this.animate = function(refresh) {
-      var ball_animation = window.setInterval(function() {
-	    if (gameEnded) return window.clearInterval(ball_animation);
-	    if (paused) return;
-        var chain_speed = 0, bX = getX(ball.el), bY = getY(ball.el);
-	  
-	    /* -- START window hitboxes -- */
-	    if (bX < 0) return clear(), goal('p2', 'right_X10_Y0'); // left side is p1, so p2 gets +1
-	    if (bX > wX - 15) return clear(), goal('p1', 'left_X10_Y0'); // right side is p2, so p1 gets +1
-		
-		// top / bottom right
-		if (bY < 0 && ballDir('top-r')) sfx('collfx'), ball.dir('down-r_X10_Y'+sY());
-		if (bY > wY - 15 && ballDir('down-r')) sfx('collfx'), ball.dir('top-r_X10_Y'+sY());
-		
-		// top / bottom left
-		if (bY < 0 && ballDir('top-l')) sfx('collfx'), ball.dir('down-l_X10_Y'+sY());
-		if (bY > wY - 15 && ballDir('down-l')) sfx('collfx'), ball.dir('top-l_X10_Y'+sY());
-		/* -- END window hitboxes -- */
-		
-		
-		/* -- START paddle hitboxes -- */
-		hitbox(0, 10, 'top-r_X10_Y10', 'top-l_X10_Y10'); 
-		hitbox(10, 20, 'top-r_X10_Y8', 'top-l_X10_Y8');
-		hitbox(20, 30, 'top-r_X10_Y6', 'top-l_X10_Y6');
-		hitbox(30, 40, 'top-r_X10_Y4', 'top-l_X10_Y4');
-		hitbox(40, 50, 'top-r_X10_Y2', 'top-l_X10_Y2');
-		hitbox(50, 60, 'top-r_X10_Y1', 'top-l_X10_Y1');
-		hitbox(60, 70, 'down-r_X10_Y1', 'down-l_X10_Y1');
-		hitbox(70, 80, 'down-r_X10_Y2', 'down-l_X10_Y2');
+* 2 
 		hitbox(80, 90, 'down-r_X10_Y4', 'down-l_X10_Y4');
 		hitbox(90, 100, 'down-r_X10_Y6', 'down-l_X10_Y6');
 		hitbox(100, 110, 'down-r_X10_Y8', 'down-l_X10_Y8');
@@ -152,7 +27,7 @@ function startGame(type, mode) {
 		// start refers to the Y-offset we want to start at e.g. 0px
 		// end refers to the Y-offset we want to stop at e.g. 40px
 		// dir1 and dir2 will be used as arguments in hit(), check the conditions below ;)
-		function hitbox(start, end, dir1, dir2) {
+		function hitbox(start, end, dir1, dir2) {79866756glhl}}
 		  var incY = start;
           while (incY < end) {
 	        var incX = 0;
